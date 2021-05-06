@@ -1,0 +1,66 @@
+#include "device_registers.h"
+#include "clocks_and_modes.h"
+#include "LPUART.h"
+
+char DATA = 0;
+
+void PORT_init(void)
+{
+    PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
+
+    PORTC->PCR[8] |= PORT_PCR_MUX(2);
+    PORTC->PCR[9] |= PORT_PCR_MUX(2);
+}
+
+void WDOG_disable(void)
+{
+    WDOG->CNT=0xD928C520;
+    WDOG->TOVAL=0x0000FFFF;
+    WDOG->CS = 0x00002100;
+}
+
+void LPIT0_init(uint32_t delay)
+{
+    uint32_t timeout;
+    PCC->PCCn[PCC_LPIT_INDEX] = PCC_PCCn_PCS(6);
+    PCC->PCCn[PCC_LPIT_INDEX] |= PCC_PCCn_CGC_MASK;
+
+    LPIT0 -> MCR |= LPIT_MCR_M_CEN_MASK;
+
+    timeout = delay * 40000;
+    LPIT0->TMR[0].TVAL = timeout;
+    LPIT0->TMR[0].TCTRL |= LPIT_TMR_TCTRL_T_EN_MASK;
+}
+
+void delay_ms (volatile int ms)
+{
+    LPIT0_init(ms);
+    while(0 == (LPIT0->MSR & LPIT_MSR_TIF0_MASK)){}
+            LPIT0->MSR |= LPIT_MSR_TIF0_MASK;
+}
+
+
+
+int main(void)
+{
+    char buffer = 0;
+    WDOG_disable();
+    SOSC_init_8MHz();
+    SPLL_init_160MHz();
+    NormalRUNmode_80MHz();
+    SystemCoreClockUpdate();
+
+
+    PORT_init();
+    LPUART1_init();
+    LPUART1_transmit_string("Running LPUART example\n\r");
+    LPUART1_transmit_string("Input character to echo...\n\r");
+ 
+    for(;;)
+    {
+        LPUART1_transmit_char('>');
+        buffer=LPUART1_receive_and_echo_char();
+        LPUART1_transmit_char(buffer);
+    }
+}
+
