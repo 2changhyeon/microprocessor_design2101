@@ -1,66 +1,70 @@
+#include "ADC.h"
 #include "device_registers.h"
 #include "clocks_and_modes.h"
-#include "LPUART.h"
 
-char DATA = 0;
+void PORT_init(void){
+PCC->PCCn[PCC_PORTD_INDEX]|=PCC_PCCn_CGC_MASK; 
+PCC->PCCn[PCC_PORTE_INDEX]|=PCC_PCCn_CGC_MASK;
+		
+PTD->PDDR |= 1<<0|1<<1|1<<2|1<<3|1<<4|1<<5|1<<6|1<<7;
+PTE->PDDR |= 1<<13|1<<14|1<<15|1<<16; 
+	
+PORTD->PCR[0] = PORT_PCR_MUX(1);
+PORTD->PCR[1] = PORT_PCR_MUX(1);
+PORTD->PCR[2] = PORT_PCR_MUX(1);
+PORTD->PCR[3] = PORT_PCR_MUX(1);
+PORTD->PCR[4] = PORT_PCR_MUX(1);
+PORTD->PCR[5] = PORT_PCR_MUX(1);
+PORTD->PCR[6] = PORT_PCR_MUX(1);
+PORTD->PCR[7] = PORT_PCR_MUX(1);
 
-void PORT_init(void)
-{
-    PCC->PCCn[PCC_PORTC_INDEX] |= PCC_PCCn_CGC_MASK;
-
-    PORTC->PCR[8] |= PORT_PCR_MUX(2);
-    PORTC->PCR[9] |= PORT_PCR_MUX(2);
+PORTE->PCR[13] = PORT_PCR_MUX(1); 
+PORTE->PCR[14] = PORT_PCR_MUX(1); 
+PORTE->PCR[15] = PORT_PCR_MUX(1); 
+PORTE->PCR[16] = PORT_PCR_MUX(1); 
 }
+
 
 void WDOG_disable(void)
 {
-    WDOG->CNT=0xD928C520;
-    WDOG->TOVAL=0x0000FFFF;
-    WDOG->CS = 0x00002100;
+	WDOG->CNT=0xD928C520; /*Unlock watchdog*/
+	WDOG->TOVAL=0x0000FFFF; /*Maximum timeout value*/
+	WDOG->CS = 0x00002100; /*Disable watchdog*/
 }
 
-void LPIT0_init(uint32_t delay)
+int main(void) 
 {
-    uint32_t timeout;
-    PCC->PCCn[PCC_LPIT_INDEX] = PCC_PCCn_PCS(6);
-    PCC->PCCn[PCC_LPIT_INDEX] |= PCC_PCCn_CGC_MASK;
-
-    LPIT0 -> MCR |= LPIT_MCR_M_CEN_MASK;
-
-    timeout = delay * 40000;
-    LPIT0->TMR[0].TVAL = timeout;
-    LPIT0->TMR[0].TCTRL |= LPIT_TMR_TCTRL_T_EN_MASK;
+	uint32_t adcResultInMv = 0;
+	int num = 0;
+	
+	WDOG_disable();
+	PORT_init(); /* Configure ports */
+	SOSC_init_8MHz(); /* Initialize system oscillator for 8 MHz xtal*/
+	SPLL_init_160MHz(); /* Initialize SPLL to 160 MHz with 8 MHz SOSC */
+	NormalRUNmode_80MHz(); /* Initclocks: 80 MHz sysclk& core, 40 MHz bus, 20 MHz flash */
+	ADC_init();
+	
+	for(;;)
+	{
+		convertAdcChan(12);
+		while(adc_complete()==0){}
+		adcResultInMv = read_adc_chx();
+			
+		num = adcResultInMv / 42;
+			
+		if(num>7) 
+		{
+			PTD->PSOR |= 1<<0|1<<1|1<<2|1<<3|1<<4|1<<5|1<<6|1<<7;
+      PTE->PSOR |= 1<<13|1<<14|1<<15|1<<16; 
+			num = num + 5;
+			PTE->PCOR |= 1<<num; 
+		}	
+		else
+ 		{
+			PTD->PSOR |= 1<<0|1<<1|1<<2|1<<3|1<<4|1<<5|1<<6|1<<7;
+      PTE->PSOR |= 1<<13|1<<14|1<<15|1<<16; 
+			PTD->PCOR |= 1<<num;
+		}
+		
+	}
 }
-
-void delay_ms (volatile int ms)
-{
-    LPIT0_init(ms);
-    while(0 == (LPIT0->MSR & LPIT_MSR_TIF0_MASK)){}
-            LPIT0->MSR |= LPIT_MSR_TIF0_MASK;
-}
-
-
-
-int main(void)
-{
-    char buffer = 0;
-    WDOG_disable();
-    SOSC_init_8MHz();
-    SPLL_init_160MHz();
-    NormalRUNmode_80MHz();
-    SystemCoreClockUpdate();
-
-
-    PORT_init();
-    LPUART1_init();
-    LPUART1_transmit_string("Running LPUART example\n\r");
-    LPUART1_transmit_string("Input character to echo...\n\r");
- 
-    for(;;)
-    {
-        LPUART1_transmit_char('>');
-        buffer=LPUART1_receive_and_echo_char();
-        LPUART1_transmit_char(buffer);
-    }
-}
-
