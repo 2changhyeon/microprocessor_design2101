@@ -1,0 +1,20 @@
+void nowmonitor(void) {
+	char msg_Start = 0xA2;
+	char msg_init =0x00;
+	char msg_reset =0xA0;
+	unsigned char msg_nowmonitor[10] = {0xB8,0x65,0x20,0x89,0xA1,0x20,0x3A,0x20,0x00};
+	unsigned char money_nowmonitor[10];
+	sprintf(money_nowmonitor,"%d",money);
+	
+ 		LPUART1_transmit_char(msg_init);
+		delay_ms(100);
+	
+		LPUART1_transmit_char(msg_Start);
+	for(int nowmonitori=0;nowmonitori<9;nowmonitori++){
+		LPUART1_transmit_char(msg_nowmonitor[nowmonitori]);}	
+		delay_ms(5);
+	for(int nowmonitorj=0;nowmonitorj<10;nowmonitorj++){
+		LPUART1_transmit_char(money_nowmonitor[nowmonitorj]);}	
+		delay_ms(5);
+		LPUART1_transmit_char(msg_reset);
+}

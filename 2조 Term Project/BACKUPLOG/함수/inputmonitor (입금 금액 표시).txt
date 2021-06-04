@@ -1,0 +1,27 @@
+int inputmonitor(void) {
+	char msg_Start = 0xA2;
+	char msg_init =0x00;
+	char msg_reset =0xA0;
+	unsigned char msg_inputmonitor[11] = {0xB7,0xB3,0x20,0x8B,0x71,0x20,0xB4,0x82,0x0D,0x0A,0x00};
+	unsigned char money_inputmonitor[10];
+	int inputmoney;
+	int inputmonitorj=0;
+
+	sprintf(money_inputmonitor,"%d",money);
+	
+ 		LPUART1_transmit_char(msg_init);
+		delay_ms(100);
+	
+		LPUART1_transmit_char(msg_Start);
+	for(int inputmonitori=0;inputmonitori<11;inputmonitori++){
+		LPUART1_transmit_char(msg_inputmonitor[inputmonitori]);}	
+	delay_ms(5);
+	while(money_inputmonitor[inputmonitorj] == '\0'){
+		money_inputmonitor[inputmonitorj]=LPUART1_receive_char();
+		inputmonitorj++;}
+	delay_ms(5);	
+		LPUART1_transmit_char(msg_reset);
+
+	inputmoney=atoi(money_inputmonitor);
+	return inputmoney;
+}
